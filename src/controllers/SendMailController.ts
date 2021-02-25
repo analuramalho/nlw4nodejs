@@ -4,6 +4,7 @@ import { SurveysRepository } from '../repositores/SurveysRepository'
 import { SurveysUsersRepository } from '../repositores/SurveysUsersRepository'
 import { UsersRepository } from '../repositores/UsersRepository'
 import SendMailService from '../services/SendMailService'
+import {resolve} from 'path'
 
 class SendMailController{
     async execute(req:Request,res:Response){
@@ -13,9 +14,9 @@ class SendMailController{
         const surveysRepository=getCustomRepository(SurveysRepository)
         const surveysUsersRepository = getCustomRepository(SurveysUsersRepository)
 
-        const usersAlreadyExists =await usersRepository.findOne({email})
+        const users =await usersRepository.findOne({email})
 
-        if(!usersAlreadyExists){
+        if(!users){
             return res.status(400).json({
                 error:"User does not exists"
             })
@@ -29,14 +30,32 @@ class SendMailController{
             })
         }
 
+        const npsPath = resolve(__dirname,"..","view","emails","npsMail.hbs")
+        const variables = {
+            name:users.name,
+            title:survey.title,
+            description:survey.description,
+            user_id: users.id,
+            link:process.env.URL_MAIL
+        }
+
+        const surveyUserAlreadyExists = await surveysUsersRepository.findOne({
+            where: [{user_id:users.id},{value:null}]
+        })
+        if (surveyUserAlreadyExists){
+            await SendMailService.execute( email, survey.title, variables, npsPath )
+            return res.json(surveyUserAlreadyExists)
+        }
+
+        
         const surveyUser=surveysUsersRepository.create({
-            user_id:usersAlreadyExists.id,
+            user_id:users.id,
             survey_id
         })
         await surveysUsersRepository.save(surveyUser)
 
-
-        await SendMailService.execute( email, survey.title, survey.description )
+        
+        await SendMailService.execute( email, survey.title, variables, npsPath )
         return res.json(surveyUser)
 
     }
