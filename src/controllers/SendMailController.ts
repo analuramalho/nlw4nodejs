@@ -58,7 +58,7 @@ class SendMailController{
         })
         await surveysUsersRepository.save(surveyUser)
 
-        variables.id=surveyUserAlreadyExists.id
+        variables.id=surveyUser.id
         
         await SendMailService.execute( email, survey.title, variables, npsPath )
         return res.json(surveyUser)
